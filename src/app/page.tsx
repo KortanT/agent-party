@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useState } from "react";
 import { VirtualWorld } from "@/components/VirtualWorld";
-import { ChatMessage } from "@/components/ChatMessage";
+import { ActivityLog } from "@/components/ActivityLog";
 import { SettingsModal } from "@/components/SettingsModal";
 import { ProjectPicker } from "@/components/ProjectPicker";
 import { CharacterCustomizer } from "@/components/CharacterCustomizer";
@@ -14,14 +13,10 @@ import { useGameStore } from "@/lib/store";
 export default function Home() {
   const { sendToCEO } = useChat();
   const settings = useGameStore((s) => s.settings);
-  const messages = useGameStore((s) => s.messages);
   const isStreaming = useGameStore((s) => s.isStreaming);
   const toggleSettings = useGameStore((s) => s.toggleSettings);
   const toggleProjectPicker = useGameStore((s) => s.toggleProjectPicker);
-  const clearMessages = useGameStore((s) => s.clearMessages);
   const [input, setInput] = useState("");
-  const [showLog, setShowLog] = useState(false);
-  const logEndRef = useRef<HTMLDivElement>(null);
 
   // All hooks above — conditional render below
   const needsOnboarding = !settings.currentProjectPath;
@@ -38,7 +33,6 @@ export default function Home() {
       return;
     }
     setInput("");
-    setShowLog(true);
     sendToCEO(prompt);
   };
 
@@ -142,57 +136,10 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Main content */}
-      <div className="flex-1 flex flex-col overflow-hidden relative">
-        {/* Virtual World */}
+      {/* Main content — world + activity log side by side */}
+      <div className="flex-1 overflow-hidden relative">
         <VirtualWorld />
-
-        {/* Chat log overlay */}
-        <AnimatePresence>
-          {showLog && messages.length > 0 && (
-            <motion.div
-              className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-[#06080f] via-[#06080fee] to-transparent pointer-events-none"
-              style={{ height: "45%" }}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 20 }}
-            >
-              <div className="absolute inset-0 overflow-y-auto pointer-events-auto pt-12 px-4 pb-2">
-                {/* Toggle button */}
-                <div className="sticky top-0 z-10 flex justify-center mb-2">
-                  <button
-                    onClick={() => setShowLog(false)}
-                    className="text-[10px] text-[#475569] bg-[#111827] border border-[#1e293b] rounded-full px-3 py-1 hover:text-[#94a3b8] transition-all"
-                  >
-                    &#x25BC; Gizle
-                  </button>
-                </div>
-                {messages.map((msg) => (
-                  <ChatMessage key={msg.id} message={msg} />
-                ))}
-                <div ref={logEndRef} />
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Show log button when hidden */}
-        {!showLog && messages.length > 0 && (
-          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 flex gap-2">
-            <button
-              onClick={() => setShowLog(true)}
-              className="text-[10px] text-[#475569] bg-[#111827] border border-[#1e293b] rounded-full px-4 py-1.5 hover:text-[#94a3b8] hover:border-[#334155] transition-all"
-            >
-              &#x25B2; Sohbet ({messages.length})
-            </button>
-            <button
-              onClick={clearMessages}
-              className="text-[10px] text-[#475569] bg-[#111827] border border-[#1e293b] rounded-full px-3 py-1.5 hover:text-red-400 hover:border-red-500/30 transition-all"
-            >
-              &#x2715;
-            </button>
-          </div>
-        )}
+        <ActivityLog />
       </div>
 
       {/* Modals */}
