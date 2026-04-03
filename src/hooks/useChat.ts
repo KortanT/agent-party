@@ -14,13 +14,20 @@ export function useChat() {
     updateMessage,
     setStreaming,
     completeTask,
-    setAgentStatus,
+    setAgentWorking,
+    setAgentDone,
+    setAgentStreaming,
+    sendIdleToWaiting,
   } = useGameStore();
 
   const sendToAgent = useCallback(
     async (prompt: string, agentId: string) => {
       const msgId = createId();
 
+      // 1. Agent moves to desk and starts working
+      setAgentWorking(agentId, prompt.slice(0, 80));
+
+      // 2. Add placeholder message
       addMessage({
         id: msgId,
         agentId,
@@ -29,7 +36,8 @@ export function useChat() {
         type: "response",
       });
 
-      setAgentStatus(agentId, "working");
+      // 3. Start streaming
+      setAgentStreaming(agentId, true);
 
       try {
         const res = await fetch("/api/chat", {
@@ -60,25 +68,33 @@ export function useChat() {
           if (done) break;
           const chunk = decoder.decode(value, { stream: true });
           fullContent += chunk;
+          // Real-time update — UI sees every chunk
           updateMessage(msgId, fullContent);
         }
 
+        // 4. Task complete — XP/HP/Level updates + notifications
         const estimatedTokens = Math.ceil(fullContent.length / 4) + 200;
+        setAgentStreaming(agentId, false);
         completeTask(agentId, estimatedTokens);
-        setAgentStatus(agentId, "ready");
+
+        // 5. Brief celebration, then back to ready
+        setTimeout(() => {
+          setAgentDone(agentId);
+        }, 2000);
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : "Unknown error";
         updateMessage(msgId, `[Hata: ${errorMsg}]`);
-        setAgentStatus(agentId, "ready");
+        setAgentStreaming(agentId, false);
+        setAgentDone(agentId);
       }
     },
-    [addMessage, updateMessage, completeTask, setAgentStatus, settings]
+    [addMessage, updateMessage, completeTask, setAgentWorking, setAgentDone, setAgentStreaming, settings]
   );
 
-  // CEO delegation flow: user -> CEO -> agents
+  // CEO delegation flow
   const sendToCEO = useCallback(
     async (prompt: string) => {
-      // 1. Show user message
+      // 1. User message
       addMessage({
         id: createId(),
         agentId: "user",
@@ -88,10 +104,11 @@ export function useChat() {
       });
 
       setStreaming(true);
-      setAgentStatus("komutan", "working");
+
+      // 2. CEO starts analyzing
+      setAgentWorking("komutan", "Gorevi analiz ediyor...");
 
       try {
-        // 2. Send to CEO for delegation
         const res = await fetch("/api/delegate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -110,7 +127,7 @@ export function useChat() {
 
         const data = await res.json();
 
-        // 3. Show CEO thinking
+        // 3. CEO announces plan
         addMessage({
           id: createId(),
           agentId: "komutan",
@@ -122,18 +139,33 @@ export function useChat() {
         if (data.tokenCount) {
           completeTask("komutan", data.tokenCount);
         }
-        setAgentStatus("komutan", "ready");
 
-        // 4. Delegate to agents in parallel
+        setTimeout(() => setAgentDone("komutan"), 1500);
+
+        // 4. Delegate to agents
         if (data.delegations?.length > 0) {
+          const activeIds = data.delegations.map((d: { agentId: string }) => d.agentId);
+
+          // System announcement
+          const agentNames = data.delegations
+            .map((d: { agentId: string }) => {
+              const a = useGameStore.getState().agents.find((ag) => ag.id === d.agentId);
+              return a?.name || d.agentId;
+            })
+            .join(", ");
+
           addMessage({
             id: createId(),
             agentId: "system",
-            content: `Komutan ${data.delegations.length} ajana gorev dagitti`,
+            content: `Komutan gorev dagitti: ${agentNames}`,
             timestamp: Date.now(),
             type: "system",
           });
 
+          // Move idle agents to waiting room
+          sendIdleToWaiting(["komutan", ...activeIds]);
+
+          // Run agents in parallel — each one walks to desk, works, streams
           await Promise.all(
             data.delegations.map((d: { agentId: string; task: string }) =>
               sendToAgent(d.task, d.agentId)
@@ -149,31 +181,13 @@ export function useChat() {
           timestamp: Date.now(),
           type: "response",
         });
-        setAgentStatus("komutan", "ready");
+        setAgentDone("komutan");
       } finally {
         setStreaming(false);
       }
     },
-    [addMessage, setStreaming, completeTask, setAgentStatus, sendToAgent, settings]
+    [addMessage, setStreaming, completeTask, setAgentWorking, setAgentDone, sendIdleToWaiting, sendToAgent, settings]
   );
 
-  // Direct message to specific agent (bypass CEO)
-  const sendDirect = useCallback(
-    async (prompt: string, agentId: string) => {
-      addMessage({
-        id: createId(),
-        agentId: "user",
-        content: prompt,
-        timestamp: Date.now(),
-        type: "task",
-      });
-
-      setStreaming(true);
-      await sendToAgent(prompt, agentId);
-      setStreaming(false);
-    },
-    [addMessage, setStreaming, sendToAgent]
-  );
-
-  return { sendToCEO, sendDirect };
+  return { sendToCEO, sendToAgent };
 }

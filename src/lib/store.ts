@@ -1,33 +1,48 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { Agent, ChatMessage, Settings, ProviderType, Project, CharacterAppearance } from "./agents/types";
+import { Agent, ChatMessage, Settings, ProviderType, Project, CharacterAppearance, GameNotification, AgentZone } from "./agents/types";
 import { defaultAgents } from "./agents/registry";
 import { applyTaskCompletion, getStatusFromHP, regenerateHP } from "./rpg/stats";
+import { getLevelFromXP } from "./rpg/levels";
+
+// Desk positions (where agents work)
+const DESK_POSITIONS: Record<string, { x: number; y: number }> = {
+  komutan: { x: 50, y: 20 },
+  merlin: { x: 20, y: 55 },
+  "sir-debug": { x: 80, y: 55 },
+  pixie: { x: 35, y: 78 },
+  "data-x": { x: 65, y: 78 },
+};
+
+// Waiting room positions (bottom corners)
+const WAITING_POSITIONS = [
+  { x: 8, y: 90 },
+  { x: 16, y: 92 },
+  { x: 88, y: 90 },
+  { x: 92, y: 92 },
+];
+
+let waitingIndex = 0;
+function getWaitingPosition() {
+  const pos = WAITING_POSITIONS[waitingIndex % WAITING_POSITIONS.length];
+  waitingIndex++;
+  return pos;
+}
 
 interface GameState {
-  // Agents
   agents: Agent[];
   selectedAgentId: string | "all";
-
-  // Chat
   messages: ChatMessage[];
   isStreaming: boolean;
-
-  // Discussion
   isDiscussing: boolean;
   discussionRound: number;
-
-  // Projects
   projects: Project[];
   showProjectPicker: boolean;
-
-  // Character customizer
   showCustomizer: boolean;
   customizerAgentId: string | null;
-
-  // Settings
   settings: Settings;
   showSettings: boolean;
+  notifications: GameNotification[];
 
   // Actions
   selectAgent: (id: string | "all") => void;
@@ -37,6 +52,12 @@ interface GameState {
   setDiscussing: (discussing: boolean, round?: number) => void;
   completeTask: (agentId: string, tokenCount: number) => void;
   setAgentStatus: (agentId: string, status: Agent["status"]) => void;
+  setAgentWorking: (agentId: string, task: string) => void;
+  setAgentDone: (agentId: string) => void;
+  setAgentStreaming: (agentId: string, streaming: boolean) => void;
+  moveAgentToZone: (agentId: string, zone: AgentZone) => void;
+  sendIdleToWaiting: (activeAgentIds: string[]) => void;
+  recallAllToDesks: () => void;
   regenHP: (agentId: string, seconds: number) => void;
   updateSettings: (settings: Partial<Settings>) => void;
   toggleSettings: () => void;
@@ -49,6 +70,8 @@ interface GameState {
   updateAgentName: (agentId: string, name: string) => void;
   updateAgentAppearance: (agentId: string, appearance: Partial<CharacterAppearance>) => void;
   randomizeAppearance: (agentId: string) => void;
+  addNotification: (n: Omit<GameNotification, "id" | "timestamp">) => void;
+  removeNotification: (id: string) => void;
   clearMessages: () => void;
 }
 
@@ -60,6 +83,10 @@ const RANDOM_SKIN = ["#fcd9b6", "#f5c9a8", "#d4a574", "#c68642", "#8d5524", "#ff
 
 function randomItem<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function makeId() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2);
 }
 
 export const useGameStore = create<GameState>()(
@@ -82,6 +109,7 @@ export const useGameStore = create<GameState>()(
         currentProjectPath: "",
       },
       showSettings: false,
+      notifications: [],
 
       selectAgent: (id) => set({ selectedAgentId: id }),
 
@@ -100,18 +128,134 @@ export const useGameStore = create<GameState>()(
       setDiscussing: (discussing, round = 0) =>
         set({ isDiscussing: discussing, discussionRound: round }),
 
-      completeTask: (agentId, tokenCount) =>
+      // Agent starts working on a task — move to desk, show task
+      setAgentWorking: (agentId, task) =>
         set((state) => ({
           agents: state.agents.map((a) => {
             if (a.id !== agentId) return a;
-            const newStats = applyTaskCompletion(a.stats, tokenCount);
+            const deskPos = DESK_POSITIONS[agentId] || a.worldPosition;
             return {
               ...a,
-              stats: newStats,
-              status: getStatusFromHP(newStats.hp),
+              status: "working" as const,
+              zone: "desk" as const,
+              currentTask: task,
+              worldPosition: deskPos,
             };
           }),
         })),
+
+      // Agent finished task
+      setAgentDone: (agentId) =>
+        set((state) => ({
+          agents: state.agents.map((a) =>
+            a.id === agentId
+              ? { ...a, status: "ready" as const, currentTask: "", isStreamingResponse: false }
+              : a
+          ),
+        })),
+
+      setAgentStreaming: (agentId, streaming) =>
+        set((state) => ({
+          agents: state.agents.map((a) =>
+            a.id === agentId ? { ...a, isStreamingResponse: streaming } : a
+          ),
+        })),
+
+      // Move agent to a specific zone
+      moveAgentToZone: (agentId, zone) =>
+        set((state) => ({
+          agents: state.agents.map((a) => {
+            if (a.id !== agentId) return a;
+            let pos = a.worldPosition;
+            if (zone === "desk") pos = DESK_POSITIONS[agentId] || pos;
+            if (zone === "waiting-room") pos = getWaitingPosition();
+            return { ...a, zone, worldPosition: pos };
+          }),
+        })),
+
+      // Send non-active agents to waiting room
+      sendIdleToWaiting: (activeAgentIds) =>
+        set((state) => ({
+          agents: state.agents.map((a) => {
+            if (a.role === "ceo") return a; // CEO always at desk
+            if (activeAgentIds.includes(a.id)) return a;
+            if (a.zone === "waiting-room") return a;
+            const pos = getWaitingPosition();
+            return { ...a, zone: "waiting-room" as const, worldPosition: pos };
+          }),
+        })),
+
+      // Recall all agents to their desks
+      recallAllToDesks: () =>
+        set((state) => ({
+          agents: state.agents.map((a) => ({
+            ...a,
+            zone: "desk" as const,
+            worldPosition: DESK_POSITIONS[a.id] || a.worldPosition,
+          })),
+        })),
+
+      completeTask: (agentId, tokenCount) =>
+        set((state) => {
+          const agent = state.agents.find((a) => a.id === agentId);
+          if (!agent) return state;
+
+          const oldLevel = agent.stats.level;
+          const newStats = applyTaskCompletion(agent.stats, tokenCount);
+          const xpGained = newStats.xp - agent.stats.xp;
+          const hpLost = agent.stats.hp - newStats.hp;
+          const newLevel = getLevelFromXP(newStats.xp);
+          const leveledUp = newLevel > oldLevel;
+
+          // Queue notifications
+          const newNotifs: GameNotification[] = [];
+          if (xpGained > 0) {
+            newNotifs.push({
+              id: makeId(),
+              agentId,
+              text: `+${xpGained} XP`,
+              type: "xp",
+              timestamp: Date.now(),
+            });
+          }
+          if (hpLost > 0) {
+            newNotifs.push({
+              id: makeId(),
+              agentId,
+              text: `-${hpLost} HP`,
+              type: "hp",
+              timestamp: Date.now() + 500,
+            });
+          }
+          if (leveledUp) {
+            newNotifs.push({
+              id: makeId(),
+              agentId,
+              text: `Seviye ${newLevel}!`,
+              type: "levelup",
+              timestamp: Date.now() + 1000,
+            });
+          }
+          newNotifs.push({
+            id: makeId(),
+            agentId,
+            text: "Gorev tamam!",
+            type: "task-done",
+            timestamp: Date.now() + 300,
+          });
+
+          return {
+            agents: state.agents.map((a) => {
+              if (a.id !== agentId) return a;
+              return {
+                ...a,
+                stats: newStats,
+                status: leveledUp ? ("leveled_up" as const) : getStatusFromHP(newStats.hp),
+              };
+            }),
+            notifications: [...state.notifications, ...newNotifs],
+          };
+        }),
 
       setAgentStatus: (agentId, status) =>
         set((state) => ({
@@ -125,11 +269,7 @@ export const useGameStore = create<GameState>()(
           agents: state.agents.map((a) => {
             if (a.id !== agentId) return a;
             const newStats = regenerateHP(a.stats, seconds);
-            return {
-              ...a,
-              stats: newStats,
-              status: getStatusFromHP(newStats.hp),
-            };
+            return { ...a, stats: newStats, status: getStatusFromHP(newStats.hp) };
           }),
         })),
 
@@ -158,7 +298,7 @@ export const useGameStore = create<GameState>()(
             p.path === path ? { ...p, lastOpened: Date.now() } : p
           ),
           showProjectPicker: false,
-          messages: [], // Clear chat for new project context
+          messages: [],
         })),
 
       removeProject: (id) =>
@@ -211,29 +351,39 @@ export const useGameStore = create<GameState>()(
           };
         }),
 
+      addNotification: (n) =>
+        set((state) => ({
+          notifications: [
+            ...state.notifications,
+            { ...n, id: makeId(), timestamp: Date.now() },
+          ],
+        })),
+
+      removeNotification: (id) =>
+        set((state) => ({
+          notifications: state.notifications.filter((n) => n.id !== id),
+        })),
+
       clearMessages: () => set({ messages: [] }),
     }),
     {
       name: "agent-party-storage",
-      version: 2,
+      version: 3,
       partialize: (state) => ({
         agents: state.agents,
         settings: state.settings,
         projects: state.projects,
       }),
-      migrate: () => {
-        // On version mismatch, reset to defaults to get new fields
-        return {
-          agents: defaultAgents,
-          settings: {
-            provider: "api" as ProviderType,
-            apiKey: "",
-            model: "claude-sonnet-4-20250514",
-            currentProjectPath: "",
-          },
-          projects: [],
-        };
-      },
+      migrate: () => ({
+        agents: defaultAgents,
+        settings: {
+          provider: "api" as ProviderType,
+          apiKey: "",
+          model: "claude-sonnet-4-20250514",
+          currentProjectPath: "",
+        },
+        projects: [],
+      }),
     }
   )
 );

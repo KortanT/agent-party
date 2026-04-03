@@ -21,6 +21,9 @@ export const defaultAgents: Agent[] = [
       outfit: "suit",
     },
     worldPosition: { x: 50, y: 20 },
+    zone: "desk",
+    currentTask: "",
+    isStreamingResponse: false,
   },
   {
     id: "merlin",
@@ -42,6 +45,9 @@ export const defaultAgents: Agent[] = [
       outfit: "robe",
     },
     worldPosition: { x: 20, y: 55 },
+    zone: "desk",
+    currentTask: "",
+    isStreamingResponse: false,
   },
   {
     id: "sir-debug",
@@ -63,6 +69,9 @@ export const defaultAgents: Agent[] = [
       outfit: "armor",
     },
     worldPosition: { x: 80, y: 55 },
+    zone: "desk",
+    currentTask: "",
+    isStreamingResponse: false,
   },
   {
     id: "pixie",
@@ -84,6 +93,9 @@ export const defaultAgents: Agent[] = [
       outfit: "dress",
     },
     worldPosition: { x: 35, y: 78 },
+    zone: "desk",
+    currentTask: "",
+    isStreamingResponse: false,
   },
   {
     id: "data-x",
@@ -105,5 +117,8 @@ export const defaultAgents: Agent[] = [
       outfit: "lab-coat",
     },
     worldPosition: { x: 65, y: 78 },
+    zone: "desk",
+    currentTask: "",
+    isStreamingResponse: false,
   },
 ];

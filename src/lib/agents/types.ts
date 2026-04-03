@@ -11,6 +11,9 @@ export type AgentMood = "happy" | "focused" | "angry" | "sleepy" | "excited";
 
 export type AgentRole = "ceo" | "agent";
 
+// Where the agent currently is
+export type AgentZone = "desk" | "wandering" | "waiting-room";
+
 export interface AgentStats {
   hp: number;
   maxHp: number;
@@ -18,7 +21,6 @@ export interface AgentStats {
   level: number;
 }
 
-// Character appearance - customizable
 export interface CharacterAppearance {
   bodyColor: string;
   hatColor: string;
@@ -40,8 +42,11 @@ export interface Agent {
   mood: AgentMood;
   role: AgentRole;
   appearance: CharacterAppearance;
-  // Position in virtual world (percentage based)
   worldPosition: { x: number; y: number };
+  zone: AgentZone;
+  // Live state for real-time display
+  currentTask: string;
+  isStreamingResponse: boolean;
 }
 
 export interface ChatMessage {
@@ -60,6 +65,15 @@ export interface DelegationTask {
 export interface CEOResponse {
   thinking: string;
   delegations: DelegationTask[];
+}
+
+// Floating notification (XP gain, level up, etc.)
+export interface GameNotification {
+  id: string;
+  agentId: string;
+  text: string;
+  type: "xp" | "levelup" | "hp" | "task-done";
+  timestamp: number;
 }
 
 export type QuickAction = {
