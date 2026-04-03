@@ -140,6 +140,7 @@ export const useGameStore = create<GameState>()(
               zone: "desk" as const,
               currentTask: task,
               worldPosition: deskPos,
+              workStartedAt: Date.now(),
             };
           }),
         })),
@@ -149,7 +150,7 @@ export const useGameStore = create<GameState>()(
         set((state) => ({
           agents: state.agents.map((a) =>
             a.id === agentId
-              ? { ...a, status: "ready" as const, currentTask: "", isStreamingResponse: false }
+              ? { ...a, status: "ready" as const, currentTask: "", isStreamingResponse: false, workStartedAt: null }
               : a
           ),
         })),
@@ -368,7 +369,7 @@ export const useGameStore = create<GameState>()(
     }),
     {
       name: "agent-party-storage",
-      version: 3,
+      version: 4,
       partialize: (state) => ({
         agents: state.agents,
         settings: state.settings,

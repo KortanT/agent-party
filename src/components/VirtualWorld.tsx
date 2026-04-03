@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useGameStore } from "@/lib/store";
 import { CharacterAvatar } from "./characters/CharacterAvatar";
 import { WorldBackground } from "./WorldBackground";
@@ -119,6 +119,28 @@ function LiveBubble({ content, color, isStreaming }: { content: string; color: s
   );
 }
 
+// Live timer that ticks every second
+function LiveTimer({ startedAt, color }: { startedAt: number; color: string }) {
+  const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setElapsed(Math.floor((Date.now() - startedAt) / 1000));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [startedAt]);
+
+  const mins = Math.floor(elapsed / 60);
+  const secs = elapsed % 60;
+  const display = mins > 0 ? `${mins}:${secs.toString().padStart(2, "0")}` : `${secs}s`;
+
+  return (
+    <span className="text-[8px] font-mono tabular-nums" style={{ color }}>
+      {display}
+    </span>
+  );
+}
+
 function AgentInWorld({ agent }: { agent: Agent }) {
   const messages = useGameStore((s) => s.messages);
   const animState = getAnimState(agent);
@@ -162,7 +184,17 @@ function AgentInWorld({ agent }: { agent: Agent }) {
           animState={animState}
         />
 
-        {/* Working pulse */}
+        {/* Working glow ring */}
+        {agent.status === "working" && (
+          <motion.div
+            className="absolute -inset-2 rounded-full border-2 pointer-events-none"
+            style={{ borderColor: agent.color + "40" }}
+            animate={{ scale: [1, 1.15, 1], opacity: [0.3, 0.6, 0.3] }}
+            transition={{ duration: 1.5, repeat: Infinity }}
+          />
+        )}
+
+        {/* Working pulse dot */}
         {agent.status === "working" && (
           <motion.div
             className="absolute -top-1 -right-1 w-3 h-3 rounded-full"
@@ -184,14 +216,32 @@ function AgentInWorld({ agent }: { agent: Agent }) {
         )}
       </div>
 
-      {/* Name + status */}
+      {/* Name + status + timer */}
       <div className="mt-0.5 flex flex-col items-center">
         <span className="text-[9px] font-bold tracking-wider" style={{ color: agent.color }}>
           {agent.name}
         </span>
 
+        {/* Status text + live timer */}
+        {agent.status === "working" && (
+          <div className="flex items-center gap-1 mt-0.5">
+            <motion.div
+              className="w-1.5 h-1.5 rounded-full"
+              style={{ backgroundColor: agent.color }}
+              animate={{ opacity: [0.4, 1, 0.4] }}
+              transition={{ duration: 1, repeat: Infinity }}
+            />
+            <span className="text-[8px] text-[#94a3b8]">
+              {agent.isStreamingResponse ? "Yaziyor" : "Dusunuyor"}
+            </span>
+            {agent.workStartedAt && (
+              <LiveTimer startedAt={agent.workStartedAt} color={agent.color} />
+            )}
+          </div>
+        )}
+
         {/* HP mini bar */}
-        <div className="w-10 h-[2px] bg-[#1e293b] rounded-full mt-0.5 overflow-hidden">
+        <div className="w-12 h-[3px] bg-[#1e293b] rounded-full mt-0.5 overflow-hidden">
           <motion.div
             className="h-full rounded-full"
             style={{ backgroundColor: agent.stats.hp < 20 ? "#f87171" : agent.color }}

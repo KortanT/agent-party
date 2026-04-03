@@ -47,6 +47,7 @@ export interface Agent {
   // Live state for real-time display
   currentTask: string;
   isStreamingResponse: boolean;
+  workStartedAt: number | null; // timestamp for timer
 }
 
 export interface ChatMessage {

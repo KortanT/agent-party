@@ -24,6 +24,7 @@ export const defaultAgents: Agent[] = [
     zone: "desk",
     currentTask: "",
     isStreamingResponse: false,
+    workStartedAt: null,
   },
   {
     id: "merlin",
@@ -48,6 +49,7 @@ export const defaultAgents: Agent[] = [
     zone: "desk",
     currentTask: "",
     isStreamingResponse: false,
+    workStartedAt: null,
   },
   {
     id: "sir-debug",
@@ -72,6 +74,7 @@ export const defaultAgents: Agent[] = [
     zone: "desk",
     currentTask: "",
     isStreamingResponse: false,
+    workStartedAt: null,
   },
   {
     id: "pixie",
@@ -96,6 +99,7 @@ export const defaultAgents: Agent[] = [
     zone: "desk",
     currentTask: "",
     isStreamingResponse: false,
+    workStartedAt: null,
   },
   {
     id: "data-x",
@@ -120,5 +124,6 @@ export const defaultAgents: Agent[] = [
     zone: "desk",
     currentTask: "",
     isStreamingResponse: false,
+    workStartedAt: null,
   },
 ];
