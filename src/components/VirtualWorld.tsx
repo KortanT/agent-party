@@ -74,44 +74,48 @@ function TaskBadge({ task, color }: { task: string; color: string }) {
   );
 }
 
-// Speech bubble that shows latest message content
-function LiveBubble({ content, color, isStreaming }: { content: string; color: string; isStreaming: boolean }) {
+// Speech bubble that shows latest message content — wider, height-capped, stays in viewport
+function LiveBubble({ content, color, isStreaming, agentX }: { content: string; color: string; isStreaming: boolean; agentX: number }) {
   if (!content) return null;
 
-  // Show last ~100 chars for readability
-  const displayText = content.length > 100 ? "..." + content.slice(-100) : content;
+  // Show last ~150 chars
+  const displayText = content.length > 150 ? "..." + content.slice(-150) : content;
+
+  // Shift bubble left/right to stay in viewport
+  const nudge = agentX < 25 ? "left-0" : agentX > 75 ? "right-0" : "left-1/2 -translate-x-1/2";
 
   return (
     <motion.div
-      className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-20 pointer-events-none"
-      initial={{ opacity: 0, scale: 0.8, y: 5 }}
+      className={`absolute bottom-full ${nudge} mb-2 z-20 pointer-events-none`}
+      initial={{ opacity: 0, scale: 0.9, y: 4 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.8 }}
+      exit={{ opacity: 0, scale: 0.9 }}
     >
       <div
-        className="max-w-[200px] px-2.5 py-1.5 rounded-xl text-[9px] leading-relaxed"
+        className="w-[240px] max-h-[80px] overflow-hidden px-3 py-2 rounded-xl text-[10px] leading-[1.4]"
         style={{
-          backgroundColor: color + "15",
-          border: `1px solid ${color}25`,
+          backgroundColor: color + "12",
+          border: `1px solid ${color}20`,
           color: "#cbd5e1",
+          backdropFilter: "blur(4px)",
         }}
       >
         {displayText}
         {isStreaming && (
-          <span className="inline-flex ml-1 gap-0.5">
+          <span className="inline-flex ml-1 gap-0.5 align-middle">
             <span className="dot-1 inline-block w-1 h-1 rounded-full" style={{ backgroundColor: color }} />
             <span className="dot-2 inline-block w-1 h-1 rounded-full" style={{ backgroundColor: color }} />
             <span className="dot-3 inline-block w-1 h-1 rounded-full" style={{ backgroundColor: color }} />
           </span>
         )}
       </div>
-      <div className="flex justify-center">
+      <div className={`flex ${agentX < 25 ? "justify-start pl-4" : agentX > 75 ? "justify-end pr-4" : "justify-center"}`}>
         <div
           className="w-0 h-0"
           style={{
             borderLeft: "5px solid transparent",
             borderRight: "5px solid transparent",
-            borderTop: `5px solid ${color}25`,
+            borderTop: `5px solid ${color}20`,
           }}
         />
       </div>
@@ -171,6 +175,7 @@ function AgentInWorld({ agent }: { agent: Agent }) {
             content={latestMsg.content}
             color={agent.color}
             isStreaming={agent.isStreamingResponse}
+            agentX={agent.worldPosition.x}
           />
         )}
       </AnimatePresence>

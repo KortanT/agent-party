@@ -171,6 +171,60 @@ export function useChat() {
               sendToAgent(d.task, d.agentId)
             )
           );
+
+          // 5. CEO gives final summary report
+          setAgentWorking("komutan", "Rapor hazirlaniyor...");
+          try {
+            const summaryRes = await fetch("/api/chat", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                prompt: `Ekibin az once su gorev uzerinde calisti: "${prompt}"
+
+Her ajanin verdigi cevaplari gorebiliyorsun. Simdi CEO olarak kisa bir durum raporu ver:
+- Kim ne yapti (1 cumle per ajan)
+- Sonuc/ozet (1-2 cumle)
+- Sonraki adim onerisi (varsa)
+
+Kisa tut, 3-5 cumle yeterli.`,
+                agentId: "komutan",
+                provider: settings.provider,
+                apiKey: settings.apiKey,
+                model: settings.model,
+              }),
+            });
+
+            if (summaryRes.ok) {
+              const reader = summaryRes.body?.getReader();
+              if (reader) {
+                const summaryMsgId = createId();
+                addMessage({
+                  id: summaryMsgId,
+                  agentId: "komutan",
+                  content: "",
+                  timestamp: Date.now(),
+                  type: "response",
+                });
+                setAgentStreaming("komutan", true);
+
+                const decoder = new TextDecoder();
+                let summaryContent = "";
+                while (true) {
+                  const { done, value } = await reader.read();
+                  if (done) break;
+                  summaryContent += decoder.decode(value, { stream: true });
+                  updateMessage(summaryMsgId, summaryContent);
+                }
+                setAgentStreaming("komutan", false);
+              }
+            }
+          } catch {
+            // Summary is optional — don't block on failure
+          }
+          setAgentDone("komutan");
+
+          // Recall all agents back to desks
+          useGameStore.getState().recallAllToDesks();
         }
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : "Unknown error";
