@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useGameStore } from "@/lib/store";
 
@@ -8,17 +8,31 @@ export function ProjectPicker() {
   const { projects, showProjectPicker, toggleProjectPicker, addProject, selectProject, removeProject, settings } = useGameStore();
   const [newPath, setNewPath] = useState("");
 
-  const handleAdd = () => {
-    const path = newPath.trim();
-    if (!path) return;
-    const name = path.split("/").filter(Boolean).pop() || path;
+  const hasFolderPicker = useMemo(() => {
+    if (typeof window === "undefined") return false;
+    return "showDirectoryPicker" in window;
+  }, []);
+
+  const handleAdd = (path?: string) => {
+    const p = (path || newPath).trim();
+    if (!p) return;
+    const name = p.split("/").filter(Boolean).pop() || p;
     addProject({
       id: Date.now().toString(36),
       name,
-      path,
+      path: p,
       lastOpened: Date.now(),
     });
     setNewPath("");
+  };
+
+  const handleBrowseFolder = async () => {
+    try {
+      const dirHandle = await (window as unknown as { showDirectoryPicker: () => Promise<FileSystemDirectoryHandle> }).showDirectoryPicker();
+      handleAdd(dirHandle.name);
+    } catch {
+      // User cancelled
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -63,10 +77,21 @@ export function ProjectPicker() {
               </div>
 
               <div className="p-6 space-y-4">
-                {/* Add new project */}
+                {/* Browse folder button */}
+                {hasFolderPicker && (
+                  <button
+                    onClick={handleBrowseFolder}
+                    className="w-full py-4 rounded-xl border-2 border-dashed border-[#1e293b] hover:border-emerald-500/40 hover:bg-emerald-500/5 transition-all group"
+                  >
+                    <div className="text-lg mb-1 group-hover:scale-110 transition-transform">&#x1f4c2;</div>
+                    <div className="text-xs text-[#94a3b8]">Klasor Sec</div>
+                  </button>
+                )}
+
+                {/* Manual path input */}
                 <div>
                   <label className="text-[10px] text-[#475569] font-bold tracking-wider uppercase mb-2 block">
-                    Yeni Proje Ekle
+                    {hasFolderPicker ? "veya yolu elle girin" : "Yeni Proje Ekle"}
                   </label>
                   <div className="flex gap-2">
                     <input
@@ -78,7 +103,7 @@ export function ProjectPicker() {
                       className="flex-1 bg-[#111827] border border-[#1e293b] rounded-xl px-4 py-2.5 text-xs text-[#e2e8f0] font-mono placeholder:text-[#334155] focus:outline-none focus:border-[#334155]"
                     />
                     <button
-                      onClick={handleAdd}
+                      onClick={() => handleAdd()}
                       disabled={!newPath.trim()}
                       className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 rounded-xl text-xs font-bold text-white disabled:opacity-30 transition-all"
                     >

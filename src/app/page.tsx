@@ -14,17 +14,6 @@ import { useGameStore } from "@/lib/store";
 export default function Home() {
   const { sendToCEO } = useChat();
   const settings = useGameStore((s) => s.settings);
-
-  // Show onboarding if no project selected
-  const needsOnboarding = !settings.currentProjectPath;
-  if (needsOnboarding) {
-    return (
-      <>
-        <Onboarding />
-        <SettingsModal />
-      </>
-    );
-  }
   const messages = useGameStore((s) => s.messages);
   const isStreaming = useGameStore((s) => s.isStreaming);
   const toggleSettings = useGameStore((s) => s.toggleSettings);
@@ -33,6 +22,9 @@ export default function Home() {
   const [input, setInput] = useState("");
   const [showLog, setShowLog] = useState(false);
   const logEndRef = useRef<HTMLDivElement>(null);
+
+  // All hooks above — conditional render below
+  const needsOnboarding = !settings.currentProjectPath;
 
   const isConfigured =
     settings.provider === "cli" ||
@@ -60,6 +52,16 @@ export default function Home() {
   const projectName = settings.currentProjectPath
     ? settings.currentProjectPath.split("/").filter(Boolean).pop()
     : null;
+
+  // Show onboarding if no project selected
+  if (needsOnboarding) {
+    return (
+      <>
+        <Onboarding />
+        <SettingsModal />
+      </>
+    );
+  }
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-[#06080f]">

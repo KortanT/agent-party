@@ -1,28 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import { useGameStore } from "@/lib/store";
 import { CharacterAvatar } from "./characters/CharacterAvatar";
 import { defaultAgents } from "@/lib/agents/registry";
 
-const steps = [
-  {
-    title: "Agent Party'ye Hosgeldin!",
-    subtitle: "AI takim arkadaslarin seninle taninmak icin sabirsizlaniyor",
-    emoji: "&#x1f389;",
-  },
-  {
-    title: "Ekibinle Tanis",
-    subtitle: "Her biri farkli yeteneklere sahip 5 ajan seni bekliyor",
-    emoji: "&#x1f91d;",
-  },
-  {
-    title: "Projeni Sec",
-    subtitle: "Calisma klasorunu belirle ve maceraya basla",
-    emoji: "&#x1f4c2;",
-  },
-];
+// Pre-compute particle positions to avoid SSR/client mismatch
+const PARTICLES = Array.from({ length: 20 }, (_, i) => ({
+  left: `${(i * 5 + 3) % 100}%`,
+  top: `${(i * 7 + 10) % 90}%`,
+  duration: 3 + (i % 4),
+  delay: (i % 5) * 0.4,
+}));
 
 export function Onboarding() {
   const [step, setStep] = useState(0);
@@ -34,17 +24,36 @@ export function Onboarding() {
     settings.provider === "cli" ||
     (settings.provider === "api" && settings.apiKey.length > 0);
 
-  const handleAddProject = () => {
-    const path = projectPath.trim();
-    if (!path) return;
-    const name = path.split("/").filter(Boolean).pop() || path;
+  const handleAddProject = (path: string) => {
+    const trimmed = path.trim();
+    if (!trimmed) return;
+    const name = trimmed.split("/").filter(Boolean).pop() || trimmed;
     addProject({
       id: Date.now().toString(36),
       name,
-      path,
+      path: trimmed,
       lastOpened: Date.now(),
     });
   };
+
+  const handleBrowseFolder = async () => {
+    try {
+      // Chrome File System Access API
+      const dirHandle = await (window as unknown as { showDirectoryPicker: () => Promise<FileSystemDirectoryHandle> }).showDirectoryPicker();
+      // We get the folder name but not the full path from the API
+      // Use the name as a display-friendly identifier
+      const folderName = dirHandle.name;
+      setProjectPath(folderName);
+      handleAddProject(folderName);
+    } catch {
+      // User cancelled or API not supported — silently ignore
+    }
+  };
+
+  const hasFolderPicker = useMemo(() => {
+    if (typeof window === "undefined") return false;
+    return "showDirectoryPicker" in window;
+  }, []);
 
   const handleSkipProject = () => {
     updateSettings({ currentProjectPath: "__skipped__" });
@@ -52,25 +61,15 @@ export function Onboarding() {
 
   return (
     <div className="fixed inset-0 z-50 bg-[#06080f] flex items-center justify-center overflow-hidden">
-      {/* Animated background particles */}
+      {/* Deterministic animated particles */}
       <div className="absolute inset-0 pointer-events-none">
-        {[...Array(20)].map((_, i) => (
+        {PARTICLES.map((p, i) => (
           <motion.div
             key={i}
             className="absolute w-1 h-1 rounded-full bg-emerald-400"
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-            }}
-            animate={{
-              y: [0, -30, 0],
-              opacity: [0.05, 0.2, 0.05],
-            }}
-            transition={{
-              duration: 3 + Math.random() * 3,
-              repeat: Infinity,
-              delay: Math.random() * 2,
-            }}
+            style={{ left: p.left, top: p.top }}
+            animate={{ y: [0, -30, 0], opacity: [0.05, 0.2, 0.05] }}
+            transition={{ duration: p.duration, repeat: Infinity, delay: p.delay }}
           />
         ))}
       </div>
@@ -88,7 +87,6 @@ export function Onboarding() {
             className="text-center space-y-8"
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
           >
             <div>
               <motion.div
@@ -96,12 +94,14 @@ export function Onboarding() {
                 animate={{ scale: [1, 1.1, 1], rotate: [0, 5, -5, 0] }}
                 transition={{ duration: 2, repeat: Infinity }}
               >
-                <span dangerouslySetInnerHTML={{ __html: "&#x2694;&#xfe0f;" }} />
+                &#x2694;&#xfe0f;
               </motion.div>
               <h1 className="text-2xl font-bold text-emerald-400 tracking-[0.2em] mb-2">
                 AGENT PARTY
               </h1>
-              <p className="text-sm text-[#94a3b8]">{steps[0].subtitle}</p>
+              <p className="text-sm text-[#94a3b8]">
+                AI takim arkadaslarin seninle taninmak icin sabirsizlaniyor
+              </p>
             </div>
 
             <div className="bg-[#111827] border border-[#1e293b] rounded-2xl p-6">
@@ -111,15 +111,16 @@ export function Onboarding() {
                 gorevler ver ve projelerini birlikte gelistir.
               </p>
               <div className="flex items-center justify-center gap-1">
-                {["&#x1f9d9;", "&#x2694;&#xfe0f;", "&#x1f451;", "&#x1f98a;", "&#x1f52e;"].map((e, i) => (
+                {defaultAgents.map((a, i) => (
                   <motion.div
-                    key={i}
+                    key={a.id}
                     className="w-8 h-8 rounded-lg bg-[#1e293b] flex items-center justify-center text-sm"
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.3 + i * 0.1 }}
-                    dangerouslySetInnerHTML={{ __html: e }}
-                  />
+                  >
+                    {a.emoji}
+                  </motion.div>
                 ))}
               </div>
             </div>
@@ -142,8 +143,8 @@ export function Onboarding() {
             animate={{ opacity: 1, x: 0 }}
           >
             <div>
-              <h2 className="text-lg font-bold mb-1">{steps[1].title}</h2>
-              <p className="text-xs text-[#475569]">{steps[1].subtitle}</p>
+              <h2 className="text-lg font-bold mb-1">Ekibinle Tanis</h2>
+              <p className="text-xs text-[#475569]">Her biri farkli yeteneklere sahip 5 ajan seni bekliyor</p>
             </div>
 
             <div className="grid grid-cols-5 gap-3">
@@ -196,8 +197,8 @@ export function Onboarding() {
             animate={{ opacity: 1, x: 0 }}
           >
             <div>
-              <h2 className="text-lg font-bold mb-1">{steps[2].title}</h2>
-              <p className="text-xs text-[#475569]">{steps[2].subtitle}</p>
+              <h2 className="text-lg font-bold mb-1">Projeni Sec</h2>
+              <p className="text-xs text-[#475569]">Calisma klasorunu belirle ve maceraya basla</p>
             </div>
 
             {/* Provider setup */}
@@ -208,7 +209,7 @@ export function Onboarding() {
                 </p>
                 <div className="grid grid-cols-2 gap-2">
                   <button
-                    onClick={() => { updateSettings({ provider: "cli" }); }}
+                    onClick={() => updateSettings({ provider: "cli" })}
                     className={`p-3 rounded-xl border text-left transition-all ${
                       settings.provider === "cli"
                         ? "bg-emerald-500/10 border-emerald-500/30"
@@ -238,22 +239,41 @@ export function Onboarding() {
               <label className="text-[10px] text-[#475569] font-bold tracking-wider uppercase block text-left">
                 Proje Klasoru
               </label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={projectPath}
-                  onChange={(e) => setProjectPath(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleAddProject()}
-                  placeholder="/Users/you/projects/my-app"
-                  className="flex-1 bg-[#0a0e17] border border-[#1e293b] rounded-lg px-3 py-2.5 text-xs text-[#e2e8f0] font-mono placeholder:text-[#334155] focus:outline-none focus:border-[#334155]"
-                />
+
+              {/* File picker button */}
+              {hasFolderPicker && (
                 <button
-                  onClick={handleAddProject}
-                  disabled={!projectPath.trim()}
-                  className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-xs font-bold text-white disabled:opacity-30 transition-all"
+                  onClick={handleBrowseFolder}
+                  className="w-full py-3 rounded-xl border-2 border-dashed border-[#1e293b] hover:border-emerald-500/40 hover:bg-emerald-500/5 transition-all group"
                 >
-                  Basla
+                  <div className="text-lg mb-1 group-hover:scale-110 transition-transform">&#x1f4c2;</div>
+                  <div className="text-xs text-[#475569] group-hover:text-[#94a3b8]">Klasor Sec</div>
+                  <div className="text-[9px] text-[#334155]">Bilgisayarindan bir klasor secin</div>
                 </button>
+              )}
+
+              {/* Manual path input */}
+              <div>
+                <div className="text-[9px] text-[#334155] mb-1.5 text-left">
+                  {hasFolderPicker ? "veya yolu elle girin:" : "Proje yolunu girin:"}
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={projectPath}
+                    onChange={(e) => setProjectPath(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleAddProject(projectPath)}
+                    placeholder="/Users/you/projects/my-app"
+                    className="flex-1 bg-[#0a0e17] border border-[#1e293b] rounded-lg px-3 py-2.5 text-xs text-[#e2e8f0] font-mono placeholder:text-[#334155] focus:outline-none focus:border-[#334155]"
+                  />
+                  <button
+                    onClick={() => handleAddProject(projectPath)}
+                    disabled={!projectPath.trim()}
+                    className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-xs font-bold text-white disabled:opacity-30 transition-all"
+                  >
+                    Basla
+                  </button>
+                </div>
               </div>
             </div>
 
