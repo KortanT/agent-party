@@ -374,16 +374,20 @@ export const useGameStore = create<GameState>()(
         settings: state.settings,
         projects: state.projects,
       }),
-      migrate: () => ({
+      migrate: (persisted: unknown) => {
+        const old = persisted as Record<string, unknown> | null;
+        const oldSettings = old?.settings as Partial<Settings> | undefined;
+        return {
         agents: defaultAgents,
         settings: {
-          provider: "api" as ProviderType,
-          apiKey: "",
-          model: "claude-sonnet-4-20250514",
-          currentProjectPath: "",
+          provider: (oldSettings?.provider || "api") as ProviderType,
+          apiKey: oldSettings?.apiKey || "",
+          model: oldSettings?.model || "claude-sonnet-4-20250514",
+          currentProjectPath: oldSettings?.currentProjectPath || "",
         },
-        projects: [],
-      }),
+        projects: (old?.projects || []) as Project[],
+      };
+      },
     }
   )
 );
