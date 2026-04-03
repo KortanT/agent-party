@@ -1,0 +1,48 @@
+import { Agent } from "./types";
+
+export const defaultAgents: Agent[] = [
+  {
+    id: "merlin",
+    name: "MERLIN",
+    title: "Bas Mimar",
+    emoji: "\ud83e\uddd9",
+    skills: ["Mimari", "Sistem"],
+    color: "#4ade80",
+    stats: { hp: 95, maxHp: 100, xp: 82, level: 3 },
+    status: "ready",
+    mood: "focused",
+  },
+  {
+    id: "sir-debug",
+    name: "SIR DEBUG",
+    title: "Savasci Gelistirici",
+    emoji: "\u2694\ufe0f",
+    skills: ["Kod", "Bug"],
+    color: "#60a5fa",
+    stats: { hp: 100, maxHp: 100, xp: 67, level: 2 },
+    status: "ready",
+    mood: "focused",
+  },
+  {
+    id: "pixie",
+    name: "PIXIE",
+    title: "Tasarim Tilkisi",
+    emoji: "\ud83e\udd8a",
+    skills: ["Tasarim", "UX"],
+    color: "#fb923c",
+    stats: { hp: 78, maxHp: 100, xp: 91, level: 3 },
+    status: "ready",
+    mood: "happy",
+  },
+  {
+    id: "data-x",
+    name: "DATA-X",
+    title: "Veri Buyucusu",
+    emoji: "\ud83d\udd2e",
+    skills: ["Veri", "ML"],
+    color: "#c084fc",
+    stats: { hp: 88, maxHp: 100, xp: 95, level: 3 },
+    status: "ready",
+    mood: "focused",
+  },
+];

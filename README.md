@@ -1,36 +1,50 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Agent Party
 
-## Getting Started
+RPG-style AI agent team manager. Build your party, assign quests, watch them collaborate.
 
-First, run the development server:
+Powered by Claude. Works with **Claude Max plan** (no API key needed) or direct **API access**.
+
+## Features
+
+- **4 Agent Characters** - Each with unique personality, skills, and RPG stats
+  - Merlin (Architect) | Sir Debug (Warrior Dev) | Pixie (Design Fox) | Data-X (Data Sorcerer)
+- **Dual Backend** - Use Claude Code CLI (free with Max plan) or Anthropic API
+- **Team Discussions** - Agents debate topics from their unique perspectives
+- **RPG Stats** - HP, XP, levels that change as agents complete tasks
+- **Quick Actions** - One-click suggestions, debugging, introductions, and more
+- **Dark RPG Theme** - Beautiful game-inspired UI with animations
+
+## Quick Start
 
 ```bash
+git clone https://github.com/YOUR_USERNAME/agent-party.git
+cd agent-party
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Setup
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+**Option A: Claude Code CLI (recommended for Max plan users)**
+1. Install [Claude Code](https://docs.anthropic.com/en/docs/claude-code)
+2. Authenticate: `claude login`
+3. In Agent Party settings, select "Claude CLI"
 
-## Learn More
+**Option B: API Key**
+1. Get an API key from [Anthropic Console](https://console.anthropic.com)
+2. In Agent Party settings, select "API Key" and paste your key
 
-To learn more about Next.js, take a look at the following resources:
+## Tech Stack
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- Next.js 15 (App Router)
+- TypeScript
+- Tailwind CSS
+- Framer Motion
+- Zustand
+- Anthropic SDK
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## License
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+MIT

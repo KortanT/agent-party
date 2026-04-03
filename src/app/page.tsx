@@ -1,65 +1,92 @@
-import Image from "next/image";
+"use client";
+
+import { useState } from "react";
+import { PartyHeader } from "@/components/PartyHeader";
+import { AgentSidebar } from "@/components/AgentSidebar";
+import { ChatArea } from "@/components/ChatArea";
+import { TaskInput } from "@/components/TaskInput";
+import { TargetSelector } from "@/components/TargetSelector";
+import { QuickActions } from "@/components/QuickActions";
+import { SettingsModal } from "@/components/SettingsModal";
+import { useChat, useDiscussion } from "@/hooks/useChat";
+import { useGameStore } from "@/lib/store";
+import { QuickAction } from "@/lib/agents/types";
 
 export default function Home() {
+  const { sendMessage } = useChat();
+  const { startDiscussion } = useDiscussion();
+  const settings = useGameStore((s) => s.settings);
+  const [showDiscussInput, setShowDiscussInput] = useState(false);
+
+  const isConfigured =
+    settings.provider === "cli" ||
+    (settings.provider === "api" && settings.apiKey.length > 0);
+
+  const handleSend = (message: string) => {
+    if (!isConfigured) {
+      useGameStore.getState().toggleSettings();
+      return;
+    }
+    if (showDiscussInput) {
+      setShowDiscussInput(false);
+      startDiscussion(message);
+    } else {
+      sendMessage(message);
+    }
+  };
+
+  const handleQuickAction = (action: QuickAction) => {
+    if (!isConfigured) {
+      useGameStore.getState().toggleSettings();
+      return;
+    }
+    sendMessage(action.prompt);
+  };
+
+  const handleDiscuss = () => {
+    setShowDiscussInput((prev) => !prev);
+  };
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+    <div className="flex flex-col h-screen overflow-hidden">
+      <PartyHeader />
+      <div className="flex flex-1 overflow-hidden">
+        <AgentSidebar />
+        <main className="flex-1 flex flex-col min-w-0">
+          <ChatArea />
+
+          {/* Input area */}
+          <div className="border-t border-[#1e293b] bg-[#080c16] p-4 space-y-2.5">
+            <TargetSelector />
+
+            {showDiscussInput && (
+              <div className="flex items-center gap-2 text-[11px] text-purple-400 bg-purple-500/5 border border-purple-500/20 rounded-lg px-3 py-2">
+                <span>&#x26a1;</span>
+                <span className="flex-1">Tartisma konusu girin — tum agentlar sirayla tartisacak.</span>
+                <button
+                  onClick={() => setShowDiscussInput(false)}
+                  className="text-[#475569] hover:text-white transition-colors"
+                >
+                  &#x2715;
+                </button>
+              </div>
+            )}
+
+            <TaskInput onSend={handleSend} />
+            <QuickActions onAction={handleQuickAction} onDiscuss={handleDiscuss} />
+
+            {!isConfigured && (
+              <button
+                onClick={() => useGameStore.getState().toggleSettings()}
+                className="w-full text-[11px] text-amber-400/80 bg-amber-500/5 border border-amber-500/20 rounded-lg px-3 py-2 hover:bg-amber-500/10 transition-all text-left"
+              >
+                &#x26a0; Henuz yapilandirilmadi — tikla ve API key gir veya CLI modunu sec.
+              </button>
+            )}
+          </div>
+        </main>
+      </div>
+      <SettingsModal />
     </div>
   );
 }
