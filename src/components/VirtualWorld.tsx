@@ -217,7 +217,7 @@ export function VirtualWorld() {
   const messages = useGameStore((s) => s.messages);
 
   return (
-    <div className="flex-1 relative overflow-hidden">
+    <div className="absolute inset-0 overflow-hidden">
       <WorldBackground />
 
       {/* Waiting room label */}
