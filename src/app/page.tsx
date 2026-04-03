@@ -7,12 +7,24 @@ import { ChatMessage } from "@/components/ChatMessage";
 import { SettingsModal } from "@/components/SettingsModal";
 import { ProjectPicker } from "@/components/ProjectPicker";
 import { CharacterCustomizer } from "@/components/CharacterCustomizer";
+import { Onboarding } from "@/components/Onboarding";
 import { useChat } from "@/hooks/useChat";
 import { useGameStore } from "@/lib/store";
 
 export default function Home() {
   const { sendToCEO } = useChat();
   const settings = useGameStore((s) => s.settings);
+
+  // Show onboarding if no project selected
+  const needsOnboarding = !settings.currentProjectPath;
+  if (needsOnboarding) {
+    return (
+      <>
+        <Onboarding />
+        <SettingsModal />
+      </>
+    );
+  }
   const messages = useGameStore((s) => s.messages);
   const isStreaming = useGameStore((s) => s.isStreaming);
   const toggleSettings = useGameStore((s) => s.toggleSettings);

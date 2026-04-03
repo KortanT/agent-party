@@ -5,6 +5,8 @@ export type AgentSkill =
 
 export type AgentStatus = "ready" | "working" | "tired" | "leveled_up";
 
+export type AnimationState = "idle" | "walking" | "thinking" | "coding" | "celebrating";
+
 export type AgentMood = "happy" | "focused" | "angry" | "sleepy" | "excited";
 
 export type AgentRole = "ceo" | "agent";

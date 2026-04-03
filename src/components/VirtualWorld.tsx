@@ -3,8 +3,18 @@
 import { useGameStore } from "@/lib/store";
 import { CharacterAvatar } from "./characters/CharacterAvatar";
 import { SpeechBubble } from "./SpeechBubble";
-import { Agent } from "@/lib/agents/types";
+import { WorldBackground } from "./WorldBackground";
+import { Agent, AnimationState } from "@/lib/agents/types";
 import { motion } from "framer-motion";
+
+function getAnimState(agent: Agent, hasRecentMessage: boolean): AnimationState {
+  if (agent.status === "working") return "coding";
+  if (agent.status === "leveled_up") return "celebrating";
+  if (hasRecentMessage) return "thinking";
+  if (agent.status === "tired") return "idle";
+  // Random idle vs walking for variety
+  return "idle";
+}
 
 interface AgentInWorldProps {
   agent: Agent;
@@ -13,7 +23,7 @@ interface AgentInWorldProps {
 }
 
 function AgentInWorld({ agent, latestMessage, onClick }: AgentInWorldProps) {
-  const isWorking = agent.status === "working";
+  const animState = getAnimState(agent, !!latestMessage);
 
   return (
     <motion.div
@@ -42,11 +52,11 @@ function AgentInWorld({ agent, latestMessage, onClick }: AgentInWorldProps) {
           appearance={agent.appearance}
           color={agent.color}
           size={agent.role === "ceo" ? 90 : 75}
-          isWorking={isWorking}
+          animState={animState}
         />
 
-        {/* Working indicator */}
-        {isWorking && (
+        {/* Status indicator */}
+        {agent.status === "working" && (
           <motion.div
             className="absolute -top-1 -right-1 w-3 h-3 rounded-full"
             style={{ backgroundColor: agent.color }}
@@ -76,6 +86,14 @@ function AgentInWorld({ agent, latestMessage, onClick }: AgentInWorldProps) {
             }}
           />
         </div>
+
+        {/* Animation state label */}
+        <span className="text-[7px] text-[#334155] mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          {animState === "coding" && "Kodluyor..."}
+          {animState === "thinking" && "Dusunuyor..."}
+          {animState === "celebrating" && "Kutluyor!"}
+          {animState === "idle" && "Hazir"}
+        </span>
       </div>
     </motion.div>
   );
@@ -85,67 +103,21 @@ export function VirtualWorld() {
   const agents = useGameStore((s) => s.agents);
   const messages = useGameStore((s) => s.messages);
 
-  // Get latest message per agent (within last 60 seconds)
+  // Get latest message per agent (within last 30 seconds)
   const now = Date.now();
   const recentMessages: Record<string, string> = {};
   for (let i = messages.length - 1; i >= 0; i--) {
     const msg = messages[i];
-    if (now - msg.timestamp > 60000) break;
+    if (now - msg.timestamp > 30000) break;
     if (msg.agentId !== "user" && msg.agentId !== "system" && !recentMessages[msg.agentId]) {
       recentMessages[msg.agentId] = msg.content;
     }
   }
 
   return (
-    <div className="flex-1 relative bg-grid overflow-hidden">
-      {/* Ambient background elements */}
-      <div className="absolute inset-0 pointer-events-none">
-        {/* Desk for CEO */}
-        <div
-          className="absolute w-28 h-10 rounded-lg border border-[#1e293b]"
-          style={{
-            left: "50%",
-            top: "28%",
-            transform: "translate(-50%, 0)",
-            background: "linear-gradient(180deg, #1a2035 0%, #111827 100%)",
-          }}
-        />
-
-        {/* Work stations for agents */}
-        {agents.filter(a => a.role !== "ceo").map((agent) => (
-          <div
-            key={agent.id + "-desk"}
-            className="absolute w-16 h-6 rounded border border-[#1e293b]/50"
-            style={{
-              left: `${agent.worldPosition.x}%`,
-              top: `${agent.worldPosition.y + 12}%`,
-              transform: "translate(-50%, 0)",
-              background: `linear-gradient(180deg, ${agent.color}08 0%, ${agent.color}04 100%)`,
-            }}
-          />
-        ))}
-
-        {/* Connection lines from CEO to agents */}
-        <svg className="absolute inset-0 w-full h-full">
-          {agents.filter(a => a.role !== "ceo").map((agent) => {
-            const ceo = agents.find(a => a.role === "ceo");
-            if (!ceo) return null;
-            return (
-              <line
-                key={agent.id + "-line"}
-                x1={`${ceo.worldPosition.x}%`}
-                y1={`${ceo.worldPosition.y + 8}%`}
-                x2={`${agent.worldPosition.x}%`}
-                y2={`${agent.worldPosition.y - 8}%`}
-                stroke={agent.color}
-                strokeWidth={0.5}
-                strokeDasharray="4,4"
-                opacity={0.15}
-              />
-            );
-          })}
-        </svg>
-      </div>
+    <div className="flex-1 relative overflow-hidden">
+      {/* Beautiful background */}
+      <WorldBackground />
 
       {/* Agent characters */}
       {agents.map((agent) => (
@@ -160,8 +132,8 @@ export function VirtualWorld() {
       {/* Empty state hint */}
       {messages.length === 0 && (
         <div className="absolute bottom-6 left-1/2 -translate-x-1/2 text-center animate-fade-up">
-          <p className="text-xs text-[#334155]">
-            Yukaridaki bara prompt gir — Komutan ekibine gorev dagitacak
+          <p className="text-[11px] text-[#334155] bg-[#0a0e17]/80 rounded-full px-4 py-2 backdrop-blur-sm border border-[#1e293b]/50">
+            &#x2b50; Yukaridaki bara prompt gir — Komutan ekibine gorev dagitacak
           </p>
         </div>
       )}
